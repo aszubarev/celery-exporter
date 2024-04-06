@@ -19,6 +19,7 @@ wemake-python-styleguide = "^0.19"
 mypy = "^1.9"
 types-pytz = "^2024.1.0"
 isort = "^5.13"
+flower = "^2.0.1"
 
 
 [build-system]
