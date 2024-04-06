@@ -4,10 +4,10 @@ import click
 import structlog
 from celery_exporter.conf import settings
 from celery_exporter.exporter import run
-from celery_exporter.help import cmd_help
+from celery_exporter.utils.cli_help import cli_help
 
 
-@click.command(help=cmd_help)
+@click.command(help=cli_help)
 def cli() -> None:
     run()
 

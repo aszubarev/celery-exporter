@@ -11,6 +11,7 @@ celery = "^5.3"
 pydantic = "^2.6"
 pydantic-settings = "^2.2"
 structlog = "^24.1"
+pytz = "^2024.1"
 
 
 [tool.poetry.dev-dependencies]

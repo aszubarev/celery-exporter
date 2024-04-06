@@ -4,9 +4,8 @@ from threading import Thread
 
 import structlog
 from celery import Celery
-from celery_exporter import metrics, track
+from celery_exporter import metrics, state, track
 from celery_exporter.conf import settings
-from celery_exporter.queue_cache import queue_cache
 from celery_exporter.utils.celery_app_settings import CeleryAppSettings
 from prometheus_client import start_http_server
 
@@ -33,32 +32,30 @@ class Exporter:
     def collect_worker_metrics(cls, service_name: str) -> None:                                     # noqa: C901
         app = cls._create_celery_app(service_name)
 
-        state = app.events.State()
         if settings.COLLECT_WORKER_METRICS_RETRY_INTERVAL:
             logger.debug('Using retry_interval of %s seconds', settings.COLLECT_WORKER_METRICS_RETRY_INTERVAL)
 
         handlers = {
-            'worker-heartbeat': partial(track.track_worker_heartbeat, state=state, service_name=service_name),
+            'worker-heartbeat': partial(track.track_worker_heartbeat, service_name=service_name),
             'worker-online': partial(track.track_worker_status, is_online=True, service_name=service_name),
             'worker-offline': partial(track.track_worker_status, is_online=False, service_name=service_name),
         }
-        track_task_event = partial(track.track_task_event, state=state, service_name=service_name)
+        track_task_event = partial(track.track_task_event, service_name=service_name)
 
-        for key in metrics.state_counters:
+        for key in metrics.events_state_counters:
             handlers[key] = track_task_event
 
         with app.connection() as connection:
-            while True:                                                                             # noqa: WPS229
-                try:                                                                                # noqa: WPS229
-                    recv = app.events.Receiver(connection, handlers=handlers)
-                    recv.capture(limit=None, timeout=None, wakeup=True)                             # noqa: WPS329
-                except (KeyboardInterrupt, SystemExit) as ex:                                       # noqa: WPS329
-                    raise ex
+            recv = app.events.Receiver(connection, handlers=handlers)
 
-                except Exception as e:                                                              # noqa: WPS111
+            while True:
+                try:
+                    recv.capture(limit=None, timeout=None, wakeup=True)
+                except (KeyboardInterrupt, SystemExit) as ex:  # noqa: WPS329
+                    raise ex
+                except Exception:
                     logger.exception(
-                        'celery-exporter exception %s, retrying in %s seconds.',
-                        str(e),
+                        'Handle exception. Retrying in %s seconds.',
                         settings.COLLECT_WORKER_METRICS_RETRY_INTERVAL,
                     )
 
@@ -68,12 +65,14 @@ class Exporter:
     def collect_queue_metrics(cls, service_name: str) -> None:
         app = cls._create_celery_app(service_name)
 
-        queue_cache[service_name] = set()
+        queue_cache: set[str] = set()
+
+        state.queue_cache[service_name] = queue_cache
 
         with app.connection() as connection:
             while True:
                 try:
-                    track.track_queue_metrics(app, connection, queue_cache[service_name], service_name)
+                    track.track_queue_metrics(app, connection, queue_cache, service_name)
                 except (KeyboardInterrupt, SystemExit) as ex:                                       # noqa: WPS329
                     raise ex
                 except Exception:

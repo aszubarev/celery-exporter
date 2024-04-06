@@ -1,37 +1,19 @@
-from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+from celery_exporter.conf import settings
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, disable_created_metrics
 
-DEFAULT_BUCKETS = (
-    .005,                                                       # noqa: WPS304
-    .01,                                                        # noqa: WPS304
-    .025,                                                       # noqa: WPS304
-    .05,                                                        # noqa: WPS304
-    .075,                                                       # noqa: WPS304
-    .1,                                                         # noqa: WPS304
-    .25,                                                        # noqa: WPS304
-    .5,                                                         # noqa: WPS304
-    .75,                                                        # noqa: WPS304
-    1.0,
-    2.5,
-    5.0,
-    7.5,
-    10.0,
-    15.0,
-    20.0,
-    25.0,
-    30.0,
-    35.0,
-    40.0,
-    50.0,
-    60.0,
-    70.0,
-    80.0,
-    90.0,
-    100.0,
+if settings.PROMETHEUS_CLIENT_DISABLE_CREATED_METRICS:
+    disable_created_metrics()
+
+BUCKETS = (                                                     # noqa: WPS317
+    .005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0,          # noqa: WPS304
+    2.5, 5.0, 7.5, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0,
+    50.0, 60.0, 70.0, 80.0, 90.0, 100.0,
 )
+
 
 registry = CollectorRegistry(auto_describe=True)
 
-state_counters = {
+events_state_counters = {
     'task-sent': Counter(
         'celery_task_sent',
         'Sent when a task message is published.',
@@ -99,7 +81,7 @@ celery_task_runtime = Histogram(
     'Histogram of task runtime measurements.',
     ['name', 'hostname', 'service_name'],
     registry=registry,
-    buckets=DEFAULT_BUCKETS,
+    buckets=BUCKETS,
 )
 celery_queue_length = Gauge(
     'celery_queue_length',

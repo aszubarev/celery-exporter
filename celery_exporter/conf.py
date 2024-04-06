@@ -55,6 +55,8 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: str = 'INFO'
 
+    PROMETHEUS_CLIENT_DISABLE_CREATED_METRICS: bool = True
+
     @model_validator(mode='after')
     def validate_timeout(self) -> 'Settings':
         if self.PURGE_OFFLINE_WORKER_METRICS_AFTER_SECONDS < self.WORKER_TIMEOUT_SECONDS:

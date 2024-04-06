@@ -7,21 +7,22 @@ import structlog
 from amqp import ChannelError
 from amqp.protocol import queue_declare_ok_t
 from celery import Celery
-from celery.events.state import State, Task, Worker
+from celery.events.state import Task, Worker
 from celery.utils import nodesplit
-from celery_exporter import metrics, worker_states
+from celery_exporter import metrics, state
 from celery_exporter.conf import settings
+from celery_exporter.utils.timezone import localtime
 from kombu.connection import Connection
 
 logger = structlog.get_logger()
 
 
-def track_task_event(event: dict[str, Any], state: State, service_name: str) -> None:      # noqa: C901,WPS231
-    state.event(event)
-    task: Task = state.tasks.get(event['uuid'])
+def track_task_event(event: dict[str, Any], service_name: str) -> None:      # noqa: C901,WPS231
+    state.events_state.event(event)
+    task: Task = state.events_state.tasks.get(event['uuid'])
     logger.debug('Received event=%s for task=%s', event['type'], task.name)                # noqa: WPS204
 
-    if event['type'] not in metrics.state_counters:
+    if event['type'] not in metrics.events_state_counters:
         logger.warning('No counter matches task state=%s', task.state)
 
     labels = {
@@ -32,7 +33,7 @@ def track_task_event(event: dict[str, Any], state: State, service_name: str) -> 
     if event['type'] == 'task-sent' and settings.GENERIC_HOSTNAME_TASK_SENT_METRIC:
         labels['hostname'] = 'generic'
 
-    counter = metrics.state_counters.get(event['type'])
+    counter = metrics.events_state_counters.get(event['type'])
     if counter:
         if event['type'] == 'task-failed':
             labels['exception'] = _get_exception_class_name(task.exception)
@@ -55,13 +56,13 @@ def track_task_event(event: dict[str, Any], state: State, service_name: str) -> 
         )
 
 
-def track_worker_heartbeat(event: dict[str, Any], state: State, service_name: str) -> None:
+def track_worker_heartbeat(event: dict[str, Any], service_name: str) -> None:
     hostname = _get_hostname(event['hostname'])
     logger.debug('Received event=%s for worker=%s', event['type'], hostname)
 
-    worker_states.worker_last_seen[(hostname, service_name)] = event['timestamp']
+    state.worker_last_seen[(hostname, service_name)] = event['timestamp']
 
-    worker_state: Worker = state.event(event)[0][0]
+    worker_state: Worker = state.events_state.event(event)[0][0]
 
     active = worker_state.active or 0
     up = 1 if worker_state.alive else 0
@@ -86,19 +87,18 @@ def track_worker_status(event: dict[str, Any], is_online: bool, service_name: st
     metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(value)
 
     if is_online:
-        worker_states.worker_last_seen[(hostname, service_name)] = event['timestamp']
+        state.worker_last_seen[(hostname, service_name)] = event['timestamp']
     else:
         _forget_worker(hostname, service_name)
 
 
 def track_timed_out_workers() -> None:
-    now = datetime.datetime.utcnow().timestamp()
+    now = localtime().timestamp()
     # Make a copy of the last seen dict, so we can delete from the dict with no issues
-    worker_last_seen_copy = worker_states.worker_last_seen.copy()
+    worker_last_seen_copy = state.worker_last_seen.copy()
 
     for hostname, service_name in worker_last_seen_copy.keys():
         since = now - worker_last_seen_copy[(hostname, service_name)]
-
         if since > settings.WORKER_TIMEOUT_SECONDS:
             logger.info(
                 'Have not seen %s for %s seconds. Removing from metrics',
@@ -123,7 +123,7 @@ def track_worker_ping(app: Celery, service_name: str) -> None:
         for hostname in worker:
             logger.info('pong %s hostname: %s', service_name, hostname)
 
-            worker_states.worker_last_seen[(hostname, service_name)] = datetime.datetime.utcnow().timestamp()
+            state.worker_last_seen[(hostname, service_name)] = datetime.datetime.utcnow().timestamp()
 
             metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(1)
             # noinspection PyProtectedMember
@@ -191,7 +191,7 @@ def track_queue_metrics(                                                        
 
 
 def _forget_worker(hostname: str, service_name: str) -> None:
-    if (hostname, service_name) in worker_states.worker_last_seen:
+    if (hostname, service_name) in state.worker_last_seen:
         metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(0)
         metrics.worker_tasks_active.labels(hostname=hostname, service_name=service_name).set(0)
         # noinspection PyProtectedMember
@@ -217,7 +217,7 @@ def _purge_worker_metrics(hostname: str, service_name: str) -> None:            
         if hostname in label_seq and service_name in label_seq:
             metrics.celery_worker_up.remove(*label_seq)
 
-    for counter in metrics.state_counters.values():
+    for counter in metrics.events_state_counters.values():
         # noinspection PyProtectedMember
         for label_seq in list(counter._metrics.keys()):                                     # noqa: WPS440
             if hostname in label_seq and service_name in label_seq:
@@ -228,7 +228,7 @@ def _purge_worker_metrics(hostname: str, service_name: str) -> None:            
         if hostname in label_seq and service_name in label_seq:
             metrics.celery_task_runtime.remove(*label_seq)
 
-    del worker_states.worker_last_seen[(hostname, service_name)]  # noqa: WPS420
+    del state.worker_last_seen[(hostname, service_name)]  # noqa: WPS420
 
 
 def _get_hostname(name: str) -> str:

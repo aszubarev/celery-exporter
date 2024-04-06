@@ -26,25 +26,22 @@ prometheus_logo = """
 @@@@@@@@@@@@@@(((((((((((#@@@@@@@@@(((((((((((&@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@((((((((((((((((((((((((@@@@@@@@@@@@@@@@@@"""
 
-cmd_help = (
-    prometheus_logo +                                                             # noqa: WPS462
-    """
 
-A Prometheus exporter for Celery.
-""")
+cli_help = prometheus_logo + '\n\nA Prometheus exporter for Celery.\n\n'
 
-for state_counter in metrics.state_counters.values():
+
+for state_counter in metrics.events_state_counters.values():
     # noinspection PyProtectedMember
     name = state_counter._name
     # noinspection PyProtectedMember
     documentation = state_counter._documentation
 
-    cmd_help += f'        \b{name}_total{documentation:30s}'    # noqa: WPS336
+    cli_help += f'  {name}_total. {documentation:64s}\n\n'
 
 for metric in (metrics.celery_worker_up, metrics.worker_tasks_active, metrics.celery_task_runtime):
     # noinspection PyProtectedMember
-    name = metric._name                                         # noqa: WPS437
+    name = metric._name
     # noinspection PyProtectedMember
     documentation = metric._documentation
 
-    cmd_help += f'\b{name}{documentation:30s}'                  # noqa: WPS336
+    cli_help += f'  {name}. {documentation:64s}\n\n'
