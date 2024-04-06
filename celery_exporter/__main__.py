@@ -3,13 +3,13 @@ import logging
 import click
 import structlog
 from celery_exporter.conf import settings
-from celery_exporter.exporter import run_exporter
+from celery_exporter.exporter import run
 from celery_exporter.help import cmd_help
 
 
 @click.command(help=cmd_help)
 def cli() -> None:
-    run_exporter()
+    run()
 
 
 if __name__ == '__main__':

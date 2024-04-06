@@ -1,0 +1,12 @@
+{
+  "hostname": "celery@aszubarev-mac.local",
+  "utcoffset": -3,
+  "pid": 7226,
+  "clock": 8,
+  "uuid": "4e71454e-e0bf-477c-8abf-9559721de49d",
+  "result": "None",
+  "runtime": 0.0063114170043263584,
+  "timestamp": 1712401950.2501838,
+  "type": "task-succeeded",
+  "local_received": 1712401950.2526982
+}

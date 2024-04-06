@@ -1,0 +1,12 @@
+{
+  "hostname": "celery@aszubarev-mac.local",
+  "utcoffset": -3,
+  "pid": 8704,
+  "clock": 3,
+  "uuid": "3ca9b52f-3a6b-4780-bf51-24bdc92a1076",
+  "exception": "RuntimeError(\"Can\"t process task\")",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/aszubarev/Library/Caches/pypoetry/virtualenvs/celery-exporter-ISWk3u3R-py3.10/lib/python3.10/site-packages/celery/app/trace.py\", line 477, in trace_task\n    R = retval = fun(*args, **kwargs)\n  File \"/Users/aszubarev/Library/Caches/pypoetry/virtualenvs/celery-exporter-ISWk3u3R-py3.10/lib/python3.10/site-packages/celery/app/trace.py\", line 760, in __protected_call__\n    return self.run(*args, **kwargs)\n  File \"/Users/aszubarev/projects/aszubarev/celery-exporter/examples/tasks.py\", line 20, in test_failed\n    raise RuntimeError(\"Can\"t process task\")\nRuntimeError: Can\"t process task\n",
+  "timestamp": 1712402513.966636,
+  "type": "task-failed",
+  "local_received": 1712402513.9687
+}

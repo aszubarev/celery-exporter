@@ -1,0 +1,18 @@
+{
+  "hostname": "celery@aszubarev-mac.local",
+  "utcoffset": -3,
+  "pid": 7226,
+  "clock": 6,
+  "uuid": "4e71454e-e0bf-477c-8abf-9559721de49d",
+  "name": "tasks.foo",
+  "args": "()",
+  "kwargs": "{}",
+  "root_id": "4e71454e-e0bf-477c-8abf-9559721de49d",
+  "parent_id": null,
+  "retries": 0,
+  "eta": null,
+  "expires": null,
+  "timestamp": 1712401950.2415,
+  "type": "task-received",
+  "local_received": 1712401950.244245
+}

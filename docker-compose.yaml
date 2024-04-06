@@ -1,0 +1,18 @@
+version: "3.6"
+services:
+  postgres:
+    image: "postgres:11"
+    restart: always
+    ports:
+      - "8432:5432"
+
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    restart: always
+    ports:
+      - "8672:5672"
+      - "18672:15672"
+
+volumes:
+  pgdata:
+  grafana-storage:

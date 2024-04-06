@@ -1,0 +1,12 @@
+{
+  "hostname": "celery@aszubarev-mac.local",
+  "utcoffset": -3,
+  "pid": 13657,
+  "clock": 12,
+  "uuid": "904dc2f6-6aa7-49e0-acb2-7fe241563be6",
+  "exception": "RuntimeError(\"Can\"t process task\")",
+  "traceback": "Traceback (most recent call last):\n  File \"/Users/aszubarev/Library/Caches/pypoetry/virtualenvs/celery-exporter-ISWk3u3R-py3.10/lib/python3.10/site-packages/celery/app/autoretry.py\", line 38, in run\n    return task._orig_run(*args, **kwargs)\n  File \"/Users/aszubarev/projects/aszubarev/celery-exporter/examples/tasks.py\", line 36, in test_retried\n    raise RuntimeError(\"Can\"t process task\")\nRuntimeError: Can\"t process task\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/Users/aszubarev/Library/Caches/pypoetry/virtualenvs/celery-exporter-ISWk3u3R-py3.10/lib/python3.10/site-packages/celery/app/trace.py\", line 477, in trace_task\n    R = retval = fun(*args, **kwargs)\n  File \"/Users/aszubarev/Library/Caches/pypoetry/virtualenvs/celery-exporter-ISWk3u3R-py3.10/lib/python3.10/site-packages/celery/app/trace.py\", line 760, in __protected_call__\n    return self.run(*args, **kwargs)\n  File \"/Users/aszubarev/Library/Caches/pypoetry/virtualenvs/celery-exporter-ISWk3u3R-py3.10/lib/python3.10/site-packages/celery/app/autoretry.py\", line 60, in run\n    ret = task.retry(exc=exc, **retry_kwargs)\n  File \"/Users/aszubarev/Library/Caches/pypoetry/virtualenvs/celery-exporter-ISWk3u3R-py3.10/lib/python3.10/site-packages/celery/app/task.py\", line 757, in retry\n    raise ret\ncelery.exceptions.Retry: Retry in 5s: RuntimeError(\"Can\"t process task\")\n",
+  "timestamp": 1712404792.764382,
+  "type": "task-retried",
+  "local_received": 1712404792.767023
+}

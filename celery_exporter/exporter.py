@@ -7,6 +7,7 @@ from celery import Celery
 from celery_exporter import metrics, track
 from celery_exporter.conf import settings
 from celery_exporter.queue_cache import queue_cache
+from celery_exporter.utils.celery_app_settings import CeleryAppSettings
 from prometheus_client import start_http_server
 
 logger = structlog.get_logger()
@@ -14,12 +15,12 @@ logger = structlog.get_logger()
 
 class Exporter:
 
-    SERVICE_NAMES: list[str] = [
-        '',    # for default settings of celery
-    ]
+    CONFIGURATION: dict[str, CeleryAppSettings] = {
+        'default': CeleryAppSettings(broker_url=settings.BROKER_URL),
+    }
 
     def run(self) -> None:
-        for service_name in self.SERVICE_NAMES:
+        for service_name in self.CONFIGURATION:
             Thread(target=self.collect_worker_metrics, args=(service_name,)).start()
             Thread(target=self.collect_queue_metrics, args=(service_name,)).start()
 
@@ -30,7 +31,7 @@ class Exporter:
 
     @classmethod
     def collect_worker_metrics(cls, service_name: str) -> None:                                     # noqa: C901
-        app = cls._create_app(service_name)
+        app = cls._create_celery_app(service_name)
 
         state = app.events.State()
         if settings.COLLECT_WORKER_METRICS_RETRY_INTERVAL:
@@ -65,7 +66,7 @@ class Exporter:
 
     @classmethod
     def collect_queue_metrics(cls, service_name: str) -> None:
-        app = cls._create_app(service_name)
+        app = cls._create_celery_app(service_name)
 
         queue_cache[service_name] = set()
 
@@ -82,7 +83,7 @@ class Exporter:
 
     @classmethod
     def collect_worker_ping(cls, service_name: str) -> None:
-        app = cls._create_app(service_name)
+        app = cls._create_celery_app(service_name)
 
         while True:
             try:
@@ -107,14 +108,12 @@ class Exporter:
             time.sleep(settings.COLLECT_WORKER_TIMEOUT_METRICS_INTERVAL)
 
     @classmethod
-    def _create_app(cls, service_name: str) -> Celery:
-        return Celery(
-            broker=settings.BROKER_URL,
-            event_exchange=f'{service_name}.{settings.POSTFIX_EVENT_EXCHANGE}',
-            control_exchange=service_name,
-            control_queue_expires=60,
-        )
+    def _create_celery_app(cls, service_name: str) -> Celery:
+        celery_app_settings = cls.CONFIGURATION[service_name].dict(exclude_unset=True)
+        logger.debug('Create celery app for %s with settings: %s', service_name, celery_app_settings)
+        return Celery(**celery_app_settings)
 
 
 _instance = Exporter()
-run_exporter = _instance.run
+
+run = _instance.run

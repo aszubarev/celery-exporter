@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     POSTFIX_EVENT_EXCHANGE: str = 'celeryev.topic'
 
-    BROKER_URL: str = 'amqp://guest:guest@localhost:45672/'
+    BROKER_URL: str = 'amqp://guest:guest@localhost:8672'
 
     PORT: int = Field(default=9808, description='The port the exporter will listen on')
 

@@ -1,0 +1,13 @@
+{
+  "hostname": "celery@aszubarev-mac.local",
+  "utcoffset": -3,
+  "pid": 14394,
+  "clock": 30,
+  "uuid": "6d2f6d38-7378-461f-8e25-1cfc4aceb307",
+  "terminated": false,
+  "signum": null,
+  "expired": false,
+  "timestamp": 1712405361.334489,
+  "type": "task-revoked",
+  "local_received": 1712405362.687277
+}
