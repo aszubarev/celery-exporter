@@ -68,11 +68,11 @@ def track_worker_heartbeat(event: dict[str, Any], service_name: str) -> None:
     up = 1 if worker_state.alive else 0
 
     metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(up)
-    metrics.worker_tasks_active.labels(hostname=hostname, service_name=service_name).set(active)
+    metrics.celery_worker_tasks_active.labels(hostname=hostname, service_name=service_name).set(active)
 
     # noinspection PyProtectedMember
     logger.debug(
-        'Updated gauge=%s value=%s', metrics.worker_tasks_active._name, active,
+        'Updated gauge=%s value=%s', metrics.celery_worker_tasks_active._name, active,
     )
     # noinspection PyProtectedMember
     logger.debug('Updated gauge=%s value=%s', metrics.celery_worker_up._name, up)
@@ -193,10 +193,10 @@ def track_queue_metrics(                                                        
 def _forget_worker(hostname: str, service_name: str) -> None:
     if (hostname, service_name) in state.worker_last_seen:
         metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(0)
-        metrics.worker_tasks_active.labels(hostname=hostname, service_name=service_name).set(0)
+        metrics.celery_worker_tasks_active.labels(hostname=hostname, service_name=service_name).set(0)
         # noinspection PyProtectedMember
         logger.debug(
-            'Updated gauge=%s value=%s', metrics.worker_tasks_active._name, 0,
+            'Updated gauge=%s value=%s', metrics.celery_worker_tasks_active._name, 0,
         )
         # noinspection PyProtectedMember
         logger.debug(
@@ -208,9 +208,9 @@ def _purge_worker_metrics(hostname: str, service_name: str) -> None:            
     # Prometheus stores a copy of the metrics in memory, so we need to remove them
     # The key of the metrics is a string sequence e.g ('celery(queue_name)', 'host-1(hostname)')
     # noinspection PyProtectedMember
-    for label_seq in list(metrics.worker_tasks_active._metrics.keys()):
+    for label_seq in list(metrics.celery_worker_tasks_active._metrics.keys()):
         if hostname in label_seq and service_name in label_seq:
-            metrics.worker_tasks_active.remove(*label_seq)
+            metrics.celery_worker_tasks_active.remove(*label_seq)
 
     # noinspection PyProtectedMember
     for label_seq in list(metrics.celery_worker_up._metrics.keys()):                        # noqa: WPS440

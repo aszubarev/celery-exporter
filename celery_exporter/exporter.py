@@ -16,6 +16,14 @@ class Exporter:
 
     CONFIGURATION: dict[str, CeleryAppSettings] = {
         'default': CeleryAppSettings(broker_url=settings.BROKER_URL),
+        'service_a': CeleryAppSettings(
+            broker_url=settings.BROKER_URL,
+            task_default_exchange='service_a',
+            task_default_queue='service_a',
+            event_exchange='service_a.celeryev',
+            event_queue_prefix='service_a.celeryev',
+            control_exchange='service_a',
+        ),
     }
 
     def run(self) -> None:

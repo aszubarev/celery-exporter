@@ -38,7 +38,7 @@ for state_counter in metrics.events_state_counters.values():
 
     cli_help += f'  {name}_total. {documentation:64s}\n\n'
 
-for metric in (metrics.celery_worker_up, metrics.worker_tasks_active, metrics.celery_task_runtime):
+for metric in (metrics.celery_worker_up, metrics.celery_worker_tasks_active, metrics.celery_task_runtime):
     # noinspection PyProtectedMember
     name = metric._name
     # noinspection PyProtectedMember

@@ -70,7 +70,7 @@ celery_worker_up = Gauge(
     ['hostname', 'service_name'],
     registry=registry,
 )
-worker_tasks_active = Gauge(
+celery_worker_tasks_active = Gauge(
     'celery_worker_tasks_active',
     'The number of tasks the worker is currently processing',
     ['hostname', 'service_name'],
