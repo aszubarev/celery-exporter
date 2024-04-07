@@ -41,7 +41,7 @@ class Exporter:
             Thread(target=self.collect_worker_metrics, args=(service_name,)).start()
             Thread(target=self.collect_queue_metrics, args=(service_name,)).start()
 
-        Thread(target=self.collect_worker_timeout_metrics).start()
+        Thread(target=self.collect_worker_timeout).start()
 
         logger.info('Starting http server. http://0.0.0.0:%s/metrics', settings.PORT)
         start_http_server(port=settings.PORT, registry=metrics.registry)
@@ -113,10 +113,10 @@ class Exporter:
             time.sleep(settings.COLLECT_WORKER_PING_RETRY_INTERVAL)
 
     @classmethod
-    def collect_worker_timeout_metrics(cls) -> None:
+    def collect_worker_timeout(cls) -> None:
         while True:
             try:
-                track.track_timed_out_workers()
+                track.track_worker_timeout()
             except (KeyboardInterrupt, SystemExit) as ex:                                           # noqa: WPS329
                 raise ex
             except Exception:

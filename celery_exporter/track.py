@@ -114,7 +114,7 @@ def track_worker_status(event: EventType, service_name: str) -> None:
         _forget_worker(hostname, service_name)
 
 
-def track_timed_out_workers() -> None:
+def track_worker_timeout() -> None:
     now = localtime().timestamp()
     # Make a copy of the last seen dict, so we can delete from the dict with no issues
     worker_last_seen_copy = state.worker_last_seen.copy()
@@ -122,12 +122,12 @@ def track_timed_out_workers() -> None:
     for hostname, service_name in worker_last_seen_copy.keys():
         since = now - worker_last_seen_copy[(hostname, service_name)]
         if since > settings.WORKER_TIMEOUT_SECONDS:
-            logger.info('Worker timed out. Removing from metrics', hostname=hostname, since=since)
+            logger.info('Worker timeout. Removing from metrics', hostname=hostname, since=since)
 
             _forget_worker(hostname, service_name)
 
         if since > settings.PURGE_OFFLINE_WORKER_METRICS_AFTER_SECONDS:
-            logger.info('Worker timed out. Purging worker metrics', hostname=hostname, since=since)
+            logger.info('Worker timeout. Purging worker metrics', hostname=hostname, since=since)
 
             _purge_worker_metrics(hostname, service_name)
 
