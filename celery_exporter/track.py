@@ -1,5 +1,6 @@
 import datetime
 import re
+import threading
 from collections import defaultdict
 from typing import Any, Callable, TypeVar
 
@@ -18,26 +19,34 @@ logger = structlog.get_logger()
 
 EventType = TypeVar('EventType', bound=dict[str, Any])
 
+lock = threading.Lock()
+
 
 def receive_event(func: Callable[[EventType, str], None]) -> Callable[[EventType, str], None]:
 
     def wrapper(event: EventType, service_name: str) -> None:
-        # put event to celery.events.state.State
-        (obj, _), _ = state.events_state.event(event)
+        # Events might come in parallel
+        with lock:
+            # put event to celery.events.state.State
+            (obj, _), _ = state.events_state.event(event)
 
-        contextvars = {
-            'event_type': event['type'],
-            'service_name': service_name,
-            'hostname': getattr(obj, 'hostname', 'unknown'),
-        }
-        if isinstance(obj, Task):
-            contextvars['task_uuid'] = obj.uuid
-            contextvars['task_name'] = obj.name
-            contextvars['task_state'] = obj.state
+            worker = getattr(obj, 'hostname', 'unknown')
 
-        with structlog.contextvars.bound_contextvars(**contextvars):
-            logger.debug('Received event')
-            func(event, service_name)
+            contextvars = {
+                'event_type': event['type'],
+                'service_name': service_name,
+                'worker': worker,
+                'hostname': _get_hostname(worker),
+            }
+
+            if isinstance(obj, Task):
+                contextvars['task_uuid'] = obj.uuid
+                contextvars['task_name'] = obj.name
+                contextvars['task_state'] = obj.state
+
+            with structlog.contextvars.bound_contextvars(**contextvars):
+                logger.debug('Received event')
+                func(event, service_name)
 
     return wrapper
 
@@ -113,34 +122,32 @@ def track_timed_out_workers() -> None:
     for hostname, service_name in worker_last_seen_copy.keys():
         since = now - worker_last_seen_copy[(hostname, service_name)]
         if since > settings.WORKER_TIMEOUT_SECONDS:
-            logger.info(
-                'Have not seen %s for %s seconds. Removing from metrics',
-                hostname,
-                since,
-            )
+            logger.info('Worker timed out. Removing from metrics', hostname=hostname, since=since)
+
             _forget_worker(hostname, service_name)
 
         if since > settings.PURGE_OFFLINE_WORKER_METRICS_AFTER_SECONDS:
-            logger.info(
-                'Have not seen %s for %s seconds. Purging worker metrics',
-                hostname,
-                since,
-            )
+            logger.info('Worker timed out. Purging worker metrics', hostname=hostname, since=since)
+
             _purge_worker_metrics(hostname, service_name)
 
 
 def track_worker_ping(app: Celery, service_name: str) -> None:
-    logger.info('ping %s', service_name)
-    workers = app.control.ping(timeout=settings.TRACK_WORKER_PING_TIMEOUT)
-    for worker in workers:
-        for hostname in worker:
-            logger.info('pong %s hostname: %s', service_name, hostname)
+    logger.info('ping', service_name=service_name)
+
+    # [{'celery@aszubarev-mac.local': {'ok': 'pong'}}]  # noqa E800
+    pong = app.control.ping(timeout=settings.TRACK_WORKER_PING_TIMEOUT)
+
+    for workers in pong:
+        for worker in workers:
+            hostname = _get_hostname(worker)
+            logger.info('pong', service_name=service_name, worker=worker, hostname=hostname)
 
             state.worker_last_seen[(hostname, service_name)] = datetime.datetime.utcnow().timestamp()
 
             metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(1)
             # noinspection PyProtectedMember
-            logger.debug('Updated gauge=%s value=%s', metrics.celery_worker_up._name, 1)
+            logger.debug('Update gauge', metric_name=metrics.celery_worker_up._name, value=1)
 
 
 def track_queue_metrics(                                                                    # noqa: C901,WPS210
