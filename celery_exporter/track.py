@@ -166,11 +166,9 @@ def track_queue_metrics(                                                        
         'sentinel',
     ]
     if transport not in acceptable_transports:
-        logger.debug(
-            'Queue length tracking is only implemented for %s',
-            acceptable_transports,
-        )
+        logger.error('Queue length tracking is not available', transport=transport)
         return
+
     inspect = app.control.inspect()
 
     concurrency_per_worker = {
@@ -216,11 +214,19 @@ def _forget_worker(hostname: str, service_name: str) -> None:
         metrics.celery_worker_tasks_active.labels(hostname=hostname, service_name=service_name).set(0)
         # noinspection PyProtectedMember
         logger.debug(
-            'Updated gauge=%s value=%s', metrics.celery_worker_tasks_active._name, 0,
+            'Update gauge',
+            hostname=hostname,
+            service_name=service_name,
+            metric_name=metrics.celery_worker_up._name,
+            value=0,
         )
         # noinspection PyProtectedMember
         logger.debug(
-            'Updated gauge=%s value=%s', metrics.celery_worker_up._name, 0,
+            'Update gauge',
+            hostname=hostname,
+            service_name=service_name,
+            metric_name=metrics.celery_worker_tasks_active._name,
+            value=0,
         )
 
 
@@ -248,7 +254,7 @@ def _purge_worker_metrics(hostname: str, service_name: str) -> None:            
         if hostname in label_seq and service_name in label_seq:
             metrics.celery_task_runtime.remove(*label_seq)
 
-    del state.worker_last_seen[(hostname, service_name)]  # noqa: WPS420
+    del state.worker_last_seen[(hostname, service_name)]                                    # noqa: WPS420
 
 
 def _get_hostname(name: str) -> str:
@@ -311,6 +317,6 @@ def _rabbitmq_queue_info(connection: Connection, queue: str) -> queue_declare_ok
         return connection.default_channel.queue_declare(queue=queue, passive=True)
     except ChannelError as ex:
         if 'NOT_FOUND' in ex.message:
-            logger.debug("Queue '$s' not found", queue)
+            logger.debug("Queue not found", queue=queue)
             return None
         raise ex
