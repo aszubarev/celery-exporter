@@ -24,6 +24,14 @@ class Exporter:
             event_queue_prefix='service_a.celeryev',
             control_exchange='service_a',
         ),
+        'service_b': CeleryAppSettings(
+            broker_url=settings.BROKER_URL,
+            task_default_exchange='service_b',
+            task_default_queue='service_b',
+            event_exchange='service_b.celeryev',
+            event_queue_prefix='service_b.celeryev',
+            control_exchange='service_b',
+        ),
     }
 
     def run(self) -> None:
