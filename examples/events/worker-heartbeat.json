@@ -1,9 +1,16 @@
 {
   "hostname": "celery@aszubarev-mac.local",
   "utcoffset": -3,
-  "pid": 14394,
+  "pid": 21516,
   "clock": 53,
-  "freq": 5,
+  "freq": 2.0,
+  "active": 10,
+  "processed": 80,
+  "loadavg": [
+    3.75,
+    4.21,
+    3.86
+  ],
   "sw_ident": "py-celery",
   "sw_ver": "5.3.6",
   "sw_sys": "Darwin",
