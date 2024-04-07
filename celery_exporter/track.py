@@ -261,6 +261,12 @@ def _get_hostname(name: str) -> str:
     """
     Get hostname from celery's hostname.
 
+    Args:
+        name (str): Celery's hostname.
+
+    Returns:
+        str: hostname.
+
     Celery's hostname contains either worker's name or Process ID in it.
     >>> _get_hostname("workername@hostname")
     'hostname'
@@ -317,6 +323,6 @@ def _rabbitmq_queue_info(connection: Connection, queue: str) -> queue_declare_ok
         return connection.default_channel.queue_declare(queue=queue, passive=True)
     except ChannelError as ex:
         if 'NOT_FOUND' in ex.message:
-            logger.debug("Queue not found", queue=queue)
+            logger.debug('Queue not found', queue=queue)
             return None
         raise ex
