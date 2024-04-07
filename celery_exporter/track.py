@@ -272,6 +272,8 @@ def _get_hostname(name: str) -> str:
     'hostname'
     >>> _get_hostname("gen531@hostname")
     'hostname'
+    >>> _get_hostname("hostname")
+    'hostname'
 
     Prometheus suggests it:
     > Do not use labels to store dimensions with high cardinality (many label values)
