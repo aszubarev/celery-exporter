@@ -64,6 +64,14 @@ events_state_counters = {
     ),
 }
 
+celery_task_runtime = Histogram(
+    'celery_task_runtime',
+    'Histogram of task runtime measurements.',
+    ['name', 'hostname', 'service_name'],
+    registry=registry,
+    buckets=BUCKETS,
+)
+
 celery_worker_up = Gauge(
     'celery_worker_up',
     'Indicates if a worker has recently sent a heartbeat.',
@@ -76,13 +84,7 @@ celery_worker_tasks_active = Gauge(
     ['hostname', 'service_name'],
     registry=registry,
 )
-celery_task_runtime = Histogram(
-    'celery_task_runtime',
-    'Histogram of task runtime measurements.',
-    ['name', 'hostname', 'service_name'],
-    registry=registry,
-    buckets=BUCKETS,
-)
+
 celery_queue_length = Gauge(
     'celery_queue_length',
     'The number of message in broker queue.',
