@@ -1,7 +1,7 @@
 import datetime
 import re
 from collections import defaultdict
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 import structlog
 from amqp import ChannelError
@@ -16,49 +16,61 @@ from kombu.connection import Connection
 
 logger = structlog.get_logger()
 
+EventType = TypeVar('EventType', bound=dict[str, Any])
 
-def track_task_event(event: dict[str, Any], service_name: str) -> None:      # noqa: C901,WPS231
-    state.events_state.event(event)
+
+def receive_event(func: Callable[[EventType, str], None]) -> Callable[[EventType, str], None]:
+
+    def wrapper(event: EventType, service_name: str) -> None:
+        # put event to celery.events.state.State
+        (obj, _), _ = state.events_state.event(event)
+
+        contextvars = {
+            'event_type': event['type'],
+            'service_name': service_name,
+            'hostname': getattr(obj, 'hostname', 'unknown'),
+        }
+        if isinstance(obj, Task):
+            contextvars['task_uuid'] = obj.uuid
+            contextvars['task_name'] = obj.name
+            contextvars['task_state'] = obj.state
+
+        with structlog.contextvars.bound_contextvars(**contextvars):
+            logger.debug('Received event')
+            func(event, service_name)
+
+    return wrapper
+
+
+@receive_event
+def track_task_event(event: EventType, service_name: str) -> None:      # noqa: C901,WPS231
     task: Task = state.events_state.tasks.get(event['uuid'])
-    logger.debug('Received event=%s for task=%s', event['type'], task.name)                # noqa: WPS204
 
-    if event['type'] not in metrics.events_state_counters:
-        logger.warning('No counter matches task state=%s', task.state)
-
-    labels = {
-        'name': task.name,
-        'hostname': _get_hostname(task.hostname),
-        'service_name': service_name,
-    }
+    hostname = _get_hostname(task.hostname)
     if event['type'] == 'task-sent' and settings.GENERIC_HOSTNAME_TASK_SENT_METRIC:
-        labels['hostname'] = 'generic'
+        hostname = 'generic'
+
+    labels = {'name': task.name, 'hostname': hostname, 'service_name': service_name}
+    if event['type'] == 'task-failed':
+        labels['exception'] = _get_exception_class_name(task.exception)
 
     counter = metrics.events_state_counters.get(event['type'])
     if counter:
-        if event['type'] == 'task-failed':
-            labels['exception'] = _get_exception_class_name(task.exception)
-
         counter.labels(**labels).inc()
         # noinspection PyProtectedMember
-        logger.debug('Incremented metric=%s labels=%s', counter._name, labels)
+        logger.debug('Increment counter', metric_name=counter._name, labels=labels)
     else:
-        logger.warning("Can't get counter for event_type: %s", event['type'])
+        logger.warning("Can't get counter")
 
-    # observe task runtime
     if event['type'] == 'task-succeeded':
         metrics.celery_task_runtime.labels(**labels).observe(task.runtime)
         # noinspection PyProtectedMember
-        logger.debug(
-            'Observed metric=%s labels=%s: %ss',
-            metrics.celery_task_runtime._name,
-            labels,
-            task.runtime,
-        )
+        logger.debug('Observe', metric_name=metrics.celery_task_runtime._name, task_runtime=task.runtime)
 
 
-def track_worker_heartbeat(event: dict[str, Any], service_name: str) -> None:
+@receive_event
+def track_worker_heartbeat(event: EventType, service_name: str) -> None:
     hostname = _get_hostname(event['hostname'])
-    logger.debug('Received event=%s for worker=%s', event['type'], hostname)
 
     state.worker_last_seen[(hostname, service_name)] = event['timestamp']
 
@@ -71,22 +83,23 @@ def track_worker_heartbeat(event: dict[str, Any], service_name: str) -> None:
     metrics.celery_worker_tasks_active.labels(hostname=hostname, service_name=service_name).set(active)
 
     # noinspection PyProtectedMember
-    logger.debug(
-        'Updated gauge=%s value=%s', metrics.celery_worker_tasks_active._name, active,
-    )
+    logger.debug('Update gauge', metric_name=metrics.celery_worker_up._name, value=up)
     # noinspection PyProtectedMember
-    logger.debug('Updated gauge=%s value=%s', metrics.celery_worker_up._name, up)
+    logger.debug('Update gauge', metric_name=metrics.celery_worker_tasks_active._name, value=active)
 
 
-def track_worker_status(event: dict[str, Any], is_online: bool, service_name: str) -> None:
+@receive_event
+def track_worker_status(event: EventType, service_name: str) -> None:
+    is_online = event['type'] == 'worker-online'
     value = 1 if is_online else 0
-    event_name = 'worker-online' if is_online else 'worker-offline'
+
     hostname = _get_hostname(event['hostname'])
-    logger.debug('Received event=%s for hostname=%s', event_name, hostname)
 
     metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(value)
+    # noinspection PyProtectedMember
+    logger.debug('Update gauge', metric_name=metrics.celery_worker_up._name, value=value)
 
-    if is_online:
+    if event['type'] == 'worker-online':
         state.worker_last_seen[(hostname, service_name)] = event['timestamp']
     else:
         _forget_worker(hostname, service_name)

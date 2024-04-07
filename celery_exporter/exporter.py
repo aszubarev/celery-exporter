@@ -15,7 +15,9 @@ logger = structlog.get_logger()
 class Exporter:
 
     CONFIGURATION: dict[str, CeleryAppSettings] = {
-        'default': CeleryAppSettings(broker_url=settings.BROKER_URL),
+        'default': CeleryAppSettings(
+            broker_url=settings.BROKER_URL,
+        ),
         'service_a': CeleryAppSettings(
             broker_url=settings.BROKER_URL,
             task_default_exchange='service_a',
@@ -53,8 +55,8 @@ class Exporter:
 
         handlers = {
             'worker-heartbeat': partial(track.track_worker_heartbeat, service_name=service_name),
-            'worker-online': partial(track.track_worker_status, is_online=True, service_name=service_name),
-            'worker-offline': partial(track.track_worker_status, is_online=False, service_name=service_name),
+            'worker-online': partial(track.track_worker_status, service_name=service_name),
+            'worker-offline': partial(track.track_worker_status, service_name=service_name),
         }
         track_task_event = partial(track.track_task_event, service_name=service_name)
 

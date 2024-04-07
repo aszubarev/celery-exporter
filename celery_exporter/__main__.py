@@ -19,6 +19,7 @@ if __name__ == '__main__':
         wrapper_class=structlog.make_filtering_bound_logger(LOG_LEVEL),
         processors=[
             structlog.stdlib.add_log_level,
+            structlog.contextvars.merge_contextvars,
             structlog.processors.dict_tracebacks,
             structlog.processors.TimeStamper(fmt='iso'),
             structlog.processors.EventRenamer('message'),
