@@ -5,11 +5,11 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
 
     GENERIC_HOSTNAME_TASK_SENT_METRIC: bool = Field(
-        default=False,
+        default=True,
         description=(
             'The metric celery_task_sent_total will be labeled with a generic hostname. '
             'This option helps with label cardinality when using a dynamic number of clients '
-            "which create tasks. The default behavior is to label the metric with the client's hostname. "
+            "which create tasks. The default behavior is to label the metric with the generic hostname. "
             'Knowing which client sent a task might not be useful for many use cases as for example in '
             "Kubernetes environments where the client's hostname is a random string."
         ),
@@ -20,9 +20,7 @@ class Settings(BaseSettings):
         default=10 * 60,
         description=(
             'If no heartbeat has been received from a worker in this many seconds, '
-            'that a worker will be considered dead. Metrics will be purged for this worker '
-            'after this many seconds. If set to 0, metrics will never be purged. Helps '
-            'with keeping the cardinality of the metrics low.'
+            'that a worker will be considered dead. Metrics will be purged for this worker after this many seconds.'
         ),
     )
 
@@ -30,7 +28,7 @@ class Settings(BaseSettings):
         default=30,
         description=(
             'If no heartbeat has been received from a worker in this many seconds, '
-            'that a worker will be considered dead. If set to 0, workers will never be timed out'
+            'that a worker will be considered dead.'
         ),
     )
 

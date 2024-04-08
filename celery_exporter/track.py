@@ -8,7 +8,6 @@ from amqp import ChannelError
 from amqp.protocol import queue_declare_ok_t
 from celery import Celery
 from celery.events.state import Task, Worker
-from celery.utils import nodesplit
 from celery_exporter import metrics, state
 from celery_exporter.conf import settings
 from celery_exporter.utils.timezone import localtime
@@ -49,8 +48,7 @@ def track_task_event(event: EventType, service_name: str) -> None:      # noqa: 
 
     worker_name = task.hostname
     if event['type'] == 'task-sent' and settings.GENERIC_HOSTNAME_TASK_SENT_METRIC:
-        hostname = _get_hostname(worker_name)
-        worker_name = f'generic@{hostname}'
+        worker_name = 'generic'
 
     labels = {'name': task.name, 'worker': worker_name, 'service_name': service_name}
     if event['type'] == 'task-failed':
@@ -255,28 +253,6 @@ def _purge_worker_metrics(worker_name: str, service_name: str) -> None:         
             metrics.celery_task_runtime.remove(*label_seq)
 
     del state.worker_last_seen[(worker_name, service_name)]                                     # noqa: WPS420
-
-
-def _get_hostname(name: str) -> str:
-    """
-    Get hostname from celery's hostname.
-
-    Args:
-        name (str): Celery's hostname.
-
-    Returns:
-        str: hostname.
-
-    Celery's hostname contains either worker's name or Process ID in it.
-    >>> _get_hostname("workername@hostname")
-    'hostname'
-    >>> _get_hostname("gen531@hostname")
-    'hostname'
-    >>> _get_hostname("hostname")
-    'hostname'
-    """
-    _, hostname = nodesplit(name)
-    return hostname
 
 
 _exception_pattern = re.compile(r'^(\w+)\(')
