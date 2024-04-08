@@ -64,17 +64,16 @@ class Exporter:
             handlers[key] = track_task_event
 
         with app.connection() as connection:
-            recv = app.events.Receiver(connection, handlers=handlers)
-
             while True:
                 try:
+                    recv = app.events.Receiver(connection, handlers=handlers)
                     recv.capture(limit=None, timeout=None, wakeup=True)
                 except (KeyboardInterrupt, SystemExit) as ex:  # noqa: WPS329
                     raise ex
                 except Exception:
                     logger.exception(
-                        'Handle exception. Retrying in %s seconds.',
-                        settings.COLLECT_WORKER_METRICS_RETRY_INTERVAL,
+                        'Handle exception',
+                        retry_interval=settings.COLLECT_WORKER_METRICS_RETRY_INTERVAL,
                     )
 
                 time.sleep(settings.COLLECT_WORKER_METRICS_RETRY_INTERVAL)
@@ -127,7 +126,7 @@ class Exporter:
     @classmethod
     def _create_celery_app(cls, service_name: str) -> Celery:
         celery_app_settings = cls.CONFIGURATION[service_name].dict(exclude_unset=True)
-        logger.debug('Create celery app for %s with settings: %s', service_name, celery_app_settings)
+        logger.debug('Create celery app', service_name=service_name, celery_app_settings=celery_app_settings)
         return Celery(**celery_app_settings)
 
 

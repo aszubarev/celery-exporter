@@ -127,7 +127,7 @@ def track_worker_timeout() -> None:
             _forget_worker(hostname, service_name)
 
         if since > settings.PURGE_OFFLINE_WORKER_METRICS_AFTER_SECONDS:
-            logger.info('Worker timeout. Purging worker metrics', hostname=hostname, since=since)
+            logger.info('Worker timeout. Purging from metrics', hostname=hostname, since=since)
 
             _purge_worker_metrics(hostname, service_name)
 
@@ -274,9 +274,6 @@ def _get_hostname(name: str) -> str:
     'hostname'
     >>> _get_hostname("hostname")
     'hostname'
-
-    Prometheus suggests it:
-    > Do not use labels to store dimensions with high cardinality (many label values)
     """
     _, hostname = nodesplit(name)
     return hostname
