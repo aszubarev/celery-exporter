@@ -19,34 +19,30 @@ logger = structlog.get_logger()
 
 EventType = TypeVar('EventType', bound=dict[str, Any])
 
-lock = threading.Lock()
-
 
 def receive_event(func: Callable[[EventType, str], None]) -> Callable[[EventType, str], None]:
 
     def wrapper(event: EventType, service_name: str) -> None:
-        # Events might come in parallel
-        with lock:
-            # put event to celery.events.state.State
-            (obj, _), _ = state.events_state.event(event)
+        # put event to celery.events.state.State
+        (obj, _), _ = state.events_state.event(event)
 
-            worker = getattr(obj, 'hostname', 'unknown')
+        worker = getattr(obj, 'hostname', 'unknown')
 
-            contextvars = {
-                'event_type': event['type'],
-                'service_name': service_name,
-                'worker': worker,
-                'hostname': _get_hostname(worker),
-            }
+        contextvars = {
+            'event_type': event['type'],
+            'service_name': service_name,
+            'worker': worker,
+            'hostname': _get_hostname(worker),
+        }
 
-            if isinstance(obj, Task):
-                contextvars['task_uuid'] = obj.uuid
-                contextvars['task_name'] = obj.name
-                contextvars['task_state'] = obj.state
+        if isinstance(obj, Task):
+            contextvars['task_uuid'] = obj.uuid
+            contextvars['task_name'] = obj.name
+            contextvars['task_state'] = obj.state
 
-            with structlog.contextvars.bound_contextvars(**contextvars):
-                logger.debug('Received event')
-                func(event, service_name)
+        with structlog.contextvars.bound_contextvars(**contextvars):
+            logger.debug('Received event')
+            func(event, service_name)
 
     return wrapper
 
