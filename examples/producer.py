@@ -1,6 +1,6 @@
 from time import sleep
 
-import service_a as tasks
+import service_default as tasks
 from celery.result import AsyncResult
 
 tasks.test_succeeded.delay()

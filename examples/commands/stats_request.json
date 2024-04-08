@@ -1,0 +1,12 @@
+{
+  "method": "stats",
+  "arguments": {},
+  "destination": null,
+  "pattern": null,
+  "matcher": null,
+  "ticket": "f777445a-7481-4d87-9610-ce81c891284e",
+  "reply_to": {
+    "exchange": "reply.celery.pidbox",
+    "routing_key": "2a8072a2-a141-3bdc-9719-5d198edf23de"
+  }
+}

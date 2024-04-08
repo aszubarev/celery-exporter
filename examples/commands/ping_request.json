@@ -1,0 +1,12 @@
+{
+  "method": "ping",
+  "arguments": {},
+  "destination": null,
+  "pattern": null,
+  "matcher": null,
+  "ticket": "10ed2733-2a7e-4293-8325-bfe900f3595f",
+  "reply_to": {
+    "exchange": "reply.celery.pidbox",
+    "routing_key": "2a63faeb-64b2-327e-809d-c76f31423cf5"
+  }
+}

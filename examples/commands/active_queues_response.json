@@ -1,0 +1,33 @@
+{
+  "celery@aszubarev-mac.local": [
+    {
+      "name": "celery",
+      "exchange": {
+        "name": "celery",
+        "type": "direct",
+        "arguments": null,
+        "durable": true,
+        "passive": false,
+        "auto_delete": false,
+        "delivery_mode": null,
+        "no_declare": false
+      },
+      "routing_key": "celery",
+      "queue_arguments": null,
+      "binding_arguments": null,
+      "consumer_arguments": null,
+      "durable": true,
+      "exclusive": false,
+      "auto_delete": false,
+      "no_ack": false,
+      "alias": null,
+      "bindings": [],
+      "no_declare": null,
+      "expires": null,
+      "message_ttl": null,
+      "max_length": null,
+      "max_length_bytes": null,
+      "max_priority": null
+    }
+  ]
+}

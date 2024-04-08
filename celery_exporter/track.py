@@ -7,6 +7,7 @@ import structlog
 from amqp import ChannelError
 from amqp.protocol import queue_declare_ok_t
 from celery import Celery
+from celery.app.control import Inspect
 from celery.events.state import Task, Worker
 from celery_exporter import metrics, state
 from celery_exporter.conf import settings
@@ -126,7 +127,6 @@ def track_worker_timeout() -> None:
 def track_worker_ping(app: Celery, service_name: str) -> None:
     logger.info('ping', service_name=service_name)
 
-    # [{'celery@aszubarev-mac.local': {'ok': 'pong'}}]  # noqa E800
     pong = app.control.ping(timeout=settings.TRACK_WORKER_PING_TIMEOUT)
 
     for workers in pong:
@@ -146,26 +146,13 @@ def track_worker_ping(app: Celery, service_name: str) -> None:
             )
 
 
-def track_queue_metrics(                                                                    # noqa: C901,WPS210
-    app: Celery,
-    connection: Connection,
-    queue_cache: set[str],
-    service_name: str,
-) -> None:
+def track_queue_metrics(app: Celery, connection: Connection, service_name: str) -> None:        # noqa: C901,WPS210
     transport = connection.info()['transport']
-    acceptable_transports = [
-        'redis',
-        'rediss',
-        'amqp',
-        'amqps',
-        'memory',
-        'sentinel',
-    ]
-    if transport not in acceptable_transports:
-        logger.error('Queue length tracking is not available', transport=transport)
-        return
 
-    inspect = app.control.inspect()
+    if transport not in ['redis', 'rediss', 'amqp', 'amqps', 'memory', 'sentinel']:
+        logger.warning('Queue length tracking is not available', transport=transport)
+
+    inspect: Inspect = app.control.inspect()
 
     concurrency_per_worker = {
         worker: len(stats['pool'].get('processes', []))
@@ -182,23 +169,23 @@ def track_queue_metrics(                                                        
     for worker, info_list in queues.items():
         for queue_info in info_list:
             queue_name = queue_info['name']
-            queue_cache.add(queue_name)
+
+            state.queues[service_name].add(queue_name)
+
             workers_per_queue[queue_name] += 1
             processes_per_queue[queue_name] += concurrency_per_worker.get(worker, 0)
 
-    for queue in queue_cache:
-        if transport in ['amqp', 'amqps', 'memory']:                                        # noqa: WPS510
-            consumer_count = _rabbitmq_queue_consumer_count(connection, queue)
-            metrics.celery_active_consumer_count.labels(queue_name=queue, service_name=service_name).set(
-                consumer_count,
-            )
+    for queue in state.queues[service_name]:
+        metrics.celery_active_process_count.labels(
+            queue_name=queue,
+            service_name=service_name
+        ).set(processes_per_queue[queue])
 
-        metrics.celery_active_process_count.labels(queue_name=queue, service_name=service_name).set(
-            processes_per_queue[queue],
-        )
-        metrics.celery_active_worker_count.labels(queue_name=queue, service_name=service_name).set(
-            workers_per_queue[queue],
-        )
+        metrics.celery_active_worker_count.labels(
+            queue_name=queue,
+            service_name=service_name,
+        ).set(workers_per_queue[queue])
+
         length = _queue_length(transport, connection, queue)
         if length is not None:
             metrics.celery_queue_length.labels(queue_name=queue, service_name=service_name).set(length)

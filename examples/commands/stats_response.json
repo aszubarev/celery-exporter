@@ -1,0 +1,76 @@
+{
+  "celery@aszubarev-mac.local": {
+    "total": {},
+    "pid": 34389,
+    "clock": "5693",
+    "uptime": 14933,
+    "pool": {
+      "implementation": "celery.concurrency.prefork:TaskPool",
+      "max-concurrency": 10,
+      "processes": [
+        34397,
+        34398,
+        34399,
+        34400,
+        34401,
+        34403,
+        34404,
+        34405,
+        34406,
+        34407
+      ],
+      "max-tasks-per-child": "N/A",
+      "put-guarded-by-semaphore": false,
+      "timeouts": [
+        0,
+        0
+      ],
+      "writes": {
+        "total": 0,
+        "avg": "0.00",
+        "all": "",
+        "raw": "",
+        "strategy": "fair",
+        "inqueues": {
+          "total": 10,
+          "active": 0
+        }
+      }
+    },
+    "broker": {
+      "hostname": "127.0.0.1",
+      "userid": "guest",
+      "virtual_host": "/",
+      "port": 8672,
+      "insist": false,
+      "ssl": false,
+      "transport": "amqp",
+      "connect_timeout": 4,
+      "transport_options": {},
+      "login_method": "PLAIN",
+      "uri_prefix": null,
+      "heartbeat": 120.0,
+      "failover_strategy": "round-robin",
+      "alternates": []
+    },
+    "prefetch_count": 40,
+    "rusage": {
+      "utime": 10.662461,
+      "stime": 2.223827,
+      "maxrss": 51179520,
+      "ixrss": 0,
+      "idrss": 0,
+      "isrss": 0,
+      "minflt": 79384,
+      "majflt": 25,
+      "nswap": 0,
+      "inblock": 0,
+      "oublock": 0,
+      "msgsnd": 3032,
+      "msgrcv": 25751,
+      "nsignals": 0,
+      "nvcsw": 1227,
+      "nivcsw": 39649
+    }
+  }
+}

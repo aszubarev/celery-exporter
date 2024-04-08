@@ -4,7 +4,7 @@ from threading import Thread
 
 import structlog
 from celery import Celery
-from celery_exporter import metrics, state, track
+from celery_exporter import metrics, track
 from celery_exporter.conf import settings
 from celery_exporter.utils.celery_app_settings import CeleryAppSettings
 from prometheus_client import start_http_server
@@ -82,14 +82,10 @@ class Exporter:
     def collect_queue_metrics(cls, service_name: str) -> None:
         app = cls._create_celery_app(service_name)
 
-        queue_cache: set[str] = set()
-
-        state.queue_cache[service_name] = queue_cache
-
         with app.connection() as connection:
             while True:
                 try:
-                    track.track_queue_metrics(app, connection, queue_cache, service_name)
+                    track.track_queue_metrics(app, connection, service_name)
                 except (KeyboardInterrupt, SystemExit) as ex:                                       # noqa: WPS329
                     raise ex
                 except Exception:

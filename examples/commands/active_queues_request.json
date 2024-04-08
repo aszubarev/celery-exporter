@@ -1,0 +1,12 @@
+{
+  "method": "active_queues",
+  "arguments": {},
+  "destination": null,
+  "pattern": null,
+  "matcher": null,
+  "ticket": "9ec2c248-dab6-4176-ab09-c48b65582143",
+  "reply_to": {
+    "exchange": "reply.celery.pidbox",
+    "routing_key": "b07475f3-8114-3d7f-bf54-0de4e83caae3"
+  }
+}
