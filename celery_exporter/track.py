@@ -50,7 +50,7 @@ def track_task_event(event: EventType, service_name: str) -> None:      # noqa: 
     if event['type'] == 'task-sent' and settings.GENERIC_HOSTNAME_TASK_SENT_METRIC:
         worker_name = 'generic'
 
-    labels = {'name': task.name, 'worker': worker_name, 'service_name': service_name}
+    labels = {'task': task.name, 'worker': worker_name, 'service_name': service_name}
     if event['type'] == 'task-failed':
         labels['exception'] = _get_exception_class_name(task.exception)
 
@@ -181,10 +181,10 @@ def track_queue_metrics(                                                        
 
     for worker, info_list in queues.items():
         for queue_info in info_list:
-            name = queue_info['name']
-            queue_cache.add(name)
-            workers_per_queue[name] += 1
-            processes_per_queue[name] += concurrency_per_worker.get(worker, 0)
+            queue_name = queue_info['name']
+            queue_cache.add(queue_name)
+            workers_per_queue[queue_name] += 1
+            processes_per_queue[queue_name] += concurrency_per_worker.get(worker, 0)
 
     for queue in queue_cache:
         if transport in ['amqp', 'amqps', 'memory']:                                        # noqa: WPS510
