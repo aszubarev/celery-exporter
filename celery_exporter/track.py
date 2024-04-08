@@ -1,6 +1,5 @@
 import datetime
 import re
-import threading
 from collections import defaultdict
 from typing import Any, Callable, TypeVar
 
@@ -26,13 +25,10 @@ def receive_event(func: Callable[[EventType, str], None]) -> Callable[[EventType
         # put event to celery.events.state.State
         (obj, _), _ = state.events_state.event(event)
 
-        worker = getattr(obj, 'hostname', 'unknown')
-
         contextvars = {
             'event_type': event['type'],
             'service_name': service_name,
-            'worker': worker,
-            'hostname': _get_hostname(worker),
+            'worker': getattr(obj, 'hostname', 'unknown'),
         }
 
         if isinstance(obj, Task):
@@ -51,11 +47,12 @@ def receive_event(func: Callable[[EventType, str], None]) -> Callable[[EventType
 def track_task_event(event: EventType, service_name: str) -> None:      # noqa: C901,WPS231
     task: Task = state.events_state.tasks.get(event['uuid'])
 
-    hostname = _get_hostname(task.hostname)
+    worker_name = task.hostname
     if event['type'] == 'task-sent' and settings.GENERIC_HOSTNAME_TASK_SENT_METRIC:
-        hostname = 'generic'
+        hostname = _get_hostname(worker_name)
+        worker_name = f'generic@{hostname}'
 
-    labels = {'name': task.name, 'hostname': hostname, 'service_name': service_name}
+    labels = {'name': task.name, 'worker': worker_name, 'service_name': service_name}
     if event['type'] == 'task-failed':
         labels['exception'] = _get_exception_class_name(task.exception)
 
@@ -75,17 +72,17 @@ def track_task_event(event: EventType, service_name: str) -> None:      # noqa: 
 
 @receive_event
 def track_worker_heartbeat(event: EventType, service_name: str) -> None:
-    hostname = _get_hostname(event['hostname'])
+    worker_name = event['hostname']
 
-    state.worker_last_seen[(hostname, service_name)] = event['timestamp']
+    state.worker_last_seen[(worker_name, service_name)] = event['timestamp']
 
-    worker_state: Worker = state.events_state.event(event)[0][0]
+    worker: Worker = state.events_state.event(event)[0][0]
 
-    active = worker_state.active or 0
-    up = 1 if worker_state.alive else 0
+    active = worker.active or 0
+    up = 1 if worker.alive else 0
 
-    metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(up)
-    metrics.celery_worker_tasks_active.labels(hostname=hostname, service_name=service_name).set(active)
+    metrics.celery_worker_up.labels(worker=worker_name, service_name=service_name).set(up)
+    metrics.celery_worker_tasks_active.labels(worker=worker_name, service_name=service_name).set(active)
 
     # noinspection PyProtectedMember
     logger.debug('Update gauge', metric_name=metrics.celery_worker_up._name, value=up)
@@ -98,34 +95,34 @@ def track_worker_status(event: EventType, service_name: str) -> None:
     is_online = event['type'] == 'worker-online'
     value = 1 if is_online else 0
 
-    hostname = _get_hostname(event['hostname'])
+    worker_name = event['hostname']
 
-    metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(value)
+    metrics.celery_worker_up.labels(worker=worker_name, service_name=service_name).set(value)
     # noinspection PyProtectedMember
     logger.debug('Update gauge', metric_name=metrics.celery_worker_up._name, value=value)
 
     if event['type'] == 'worker-online':
-        state.worker_last_seen[(hostname, service_name)] = event['timestamp']
+        state.worker_last_seen[(worker_name, service_name)] = event['timestamp']
     else:
-        _forget_worker(hostname, service_name)
+        _reset_worker_metrics(worker_name, service_name)
 
 
 def track_worker_timeout() -> None:
-    now = localtime().timestamp()
+    current_time = localtime().timestamp()
     # Make a copy of the last seen dict, so we can delete from the dict with no issues
     worker_last_seen_copy = state.worker_last_seen.copy()
 
-    for hostname, service_name in worker_last_seen_copy.keys():
-        since = now - worker_last_seen_copy[(hostname, service_name)]
+    for worker_name, service_name in worker_last_seen_copy.keys():
+        since = current_time - worker_last_seen_copy[(worker_name, service_name)]
         if since > settings.WORKER_TIMEOUT_SECONDS:
-            logger.info('Worker timeout. Removing from metrics', hostname=hostname, since=since)
+            logger.info('Worker timeout. Resetting metrics', worker=worker_name, service_name=service_name, since=since)
 
-            _forget_worker(hostname, service_name)
+            _reset_worker_metrics(worker_name, service_name)
 
         if since > settings.PURGE_OFFLINE_WORKER_METRICS_AFTER_SECONDS:
-            logger.info('Worker timeout. Purging from metrics', hostname=hostname, since=since)
+            logger.info('Worker timeout. Purging metrics', worker=worker_name, service_name=service_name, since=since)
 
-            _purge_worker_metrics(hostname, service_name)
+            _purge_worker_metrics(worker_name, service_name)
 
 
 def track_worker_ping(app: Celery, service_name: str) -> None:
@@ -135,15 +132,20 @@ def track_worker_ping(app: Celery, service_name: str) -> None:
     pong = app.control.ping(timeout=settings.TRACK_WORKER_PING_TIMEOUT)
 
     for workers in pong:
-        for worker in workers:
-            hostname = _get_hostname(worker)
-            logger.info('pong', service_name=service_name, worker=worker, hostname=hostname)
+        for worker_name in workers:
+            logger.info('pong', worker=worker_name, service_name=service_name)
 
-            state.worker_last_seen[(hostname, service_name)] = datetime.datetime.utcnow().timestamp()
+            state.worker_last_seen[(worker_name, service_name)] = datetime.datetime.utcnow().timestamp()
 
-            metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(1)
+            metrics.celery_worker_up.labels(worker=worker_name, service_name=service_name).set(1)
             # noinspection PyProtectedMember
-            logger.debug('Update gauge', metric_name=metrics.celery_worker_up._name, value=1)
+            logger.debug(
+                'Update gauge',
+                worker=worker_name,
+                service_name=service_name,
+                metric_name=metrics.celery_worker_up._name,
+                value=1,
+            )
 
 
 def track_queue_metrics(                                                                    # noqa: C901,WPS210
@@ -204,53 +206,55 @@ def track_queue_metrics(                                                        
             metrics.celery_queue_length.labels(queue_name=queue, service_name=service_name).set(length)
 
 
-def _forget_worker(hostname: str, service_name: str) -> None:
-    if (hostname, service_name) in state.worker_last_seen:
-        metrics.celery_worker_up.labels(hostname=hostname, service_name=service_name).set(0)
-        metrics.celery_worker_tasks_active.labels(hostname=hostname, service_name=service_name).set(0)
-        # noinspection PyProtectedMember
-        logger.debug(
-            'Update gauge',
-            hostname=hostname,
-            service_name=service_name,
-            metric_name=metrics.celery_worker_up._name,
-            value=0,
-        )
-        # noinspection PyProtectedMember
-        logger.debug(
-            'Update gauge',
-            hostname=hostname,
-            service_name=service_name,
-            metric_name=metrics.celery_worker_tasks_active._name,
-            value=0,
-        )
+def _reset_worker_metrics(worker_name: str, service_name: str) -> None:
+    if (worker_name, service_name) not in state.worker_last_seen:
+        return
+
+    metrics.celery_worker_up.labels(worker=worker_name, service_name=service_name).set(0)
+    metrics.celery_worker_tasks_active.labels(worker=worker_name, service_name=service_name).set(0)
+    # noinspection PyProtectedMember
+    logger.debug(
+        'Update gauge',
+        worker=worker_name,
+        service_name=service_name,
+        metric_name=metrics.celery_worker_up._name,
+        value=0,
+    )
+    # noinspection PyProtectedMember
+    logger.debug(
+        'Update gauge',
+        worker=worker_name,
+        service_name=service_name,
+        metric_name=metrics.celery_worker_tasks_active._name,
+        value=0,
+    )
 
 
-def _purge_worker_metrics(hostname: str, service_name: str) -> None:                        # noqa: C901,WPS231
+def _purge_worker_metrics(worker_name: str, service_name: str) -> None:                         # noqa: C901,WPS231
     # Prometheus stores a copy of the metrics in memory, so we need to remove them
     # The key of the metrics is a string sequence e.g ('celery(queue_name)', 'host-1(hostname)')
     # noinspection PyProtectedMember
     for label_seq in list(metrics.celery_worker_tasks_active._metrics.keys()):
-        if hostname in label_seq and service_name in label_seq:
+        if worker_name in label_seq and service_name in label_seq:
             metrics.celery_worker_tasks_active.remove(*label_seq)
 
     # noinspection PyProtectedMember
-    for label_seq in list(metrics.celery_worker_up._metrics.keys()):                        # noqa: WPS440
-        if hostname in label_seq and service_name in label_seq:
+    for label_seq in list(metrics.celery_worker_up._metrics.keys()):                            # noqa: WPS440
+        if worker_name in label_seq and service_name in label_seq:
             metrics.celery_worker_up.remove(*label_seq)
 
     for counter in metrics.events_state_counters.values():
         # noinspection PyProtectedMember
-        for label_seq in list(counter._metrics.keys()):                                     # noqa: WPS440
-            if hostname in label_seq and service_name in label_seq:
+        for label_seq in list(counter._metrics.keys()):                                         # noqa: WPS440
+            if worker_name in label_seq and service_name in label_seq:
                 counter.remove(*label_seq)
 
     # noinspection PyProtectedMember
-    for label_seq in list(metrics.celery_task_runtime._metrics.keys()):                     # noqa: WPS440
-        if hostname in label_seq and service_name in label_seq:
+    for label_seq in list(metrics.celery_task_runtime._metrics.keys()):                         # noqa: WPS440
+        if worker_name in label_seq and service_name in label_seq:
             metrics.celery_task_runtime.remove(*label_seq)
 
-    del state.worker_last_seen[(hostname, service_name)]                                    # noqa: WPS420
+    del state.worker_last_seen[(worker_name, service_name)]                                     # noqa: WPS420
 
 
 def _get_hostname(name: str) -> str:

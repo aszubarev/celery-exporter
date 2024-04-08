@@ -65,10 +65,10 @@ class Exporter:
 
         with app.connection() as connection:
             while True:
-                try:
+                try:                                                                                # noqa: WPS229
                     recv = app.events.Receiver(connection, handlers=handlers)
                     recv.capture(limit=None, timeout=None, wakeup=True)
-                except (KeyboardInterrupt, SystemExit) as ex:  # noqa: WPS329
+                except (KeyboardInterrupt, SystemExit) as ex:                                       # noqa: WPS329
                     raise ex
                 except Exception:
                     logger.exception(

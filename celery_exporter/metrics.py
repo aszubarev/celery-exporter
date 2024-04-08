@@ -17,49 +17,49 @@ events_state_counters = {
     'task-sent': Counter(
         'celery_task_sent',
         'Sent when a task message is published.',
-        ['name', 'hostname', 'service_name'],
+        ['name', 'worker', 'service_name'],
         registry=registry,
     ),
     'task-received': Counter(
         'celery_task_received',
         'Sent when the worker receives a task.',
-        ['name', 'hostname', 'service_name'],
+        ['name', 'worker', 'service_name'],
         registry=registry,
     ),
     'task-started': Counter(
         'celery_task_started',
         'Sent just before the worker executes the task.',
-        ['name', 'hostname', 'service_name'],
+        ['name', 'worker', 'service_name'],
         registry=registry,
     ),
     'task-succeeded': Counter(
         'celery_task_succeeded',
         'Sent if the task executed successfully.',
-        ['name', 'hostname', 'service_name'],
+        ['name', 'worker', 'service_name'],
         registry=registry,
     ),
     'task-failed': Counter(
         'celery_task_failed',
         'Sent if the execution of the task failed.',
-        ['name', 'hostname', 'exception', 'service_name'],
+        ['name', 'worker', 'exception', 'service_name'],
         registry=registry,
     ),
     'task-rejected': Counter(
         'celery_task_rejected',
         'The task was rejected by the worker, possibly to be re-queued or moved to a dead letter queue.',
-        ['name', 'hostname', 'service_name'],
+        ['name', 'worker', 'service_name'],
         registry=registry,
     ),
     'task-revoked': Counter(
         'celery_task_revoked',
         'Sent if the task has been revoked.',
-        ['name', 'hostname', 'service_name'],
+        ['name', 'worker', 'service_name'],
         registry=registry,
     ),
     'task-retried': Counter(
         'celery_task_retried',
         'Sent if the task failed, but will be retried in the future.',
-        ['name', 'hostname', 'service_name'],
+        ['name', 'worker', 'service_name'],
         registry=registry,
     ),
 }
@@ -67,7 +67,7 @@ events_state_counters = {
 celery_task_runtime = Histogram(
     'celery_task_runtime',
     'Histogram of task runtime measurements.',
-    ['name', 'hostname', 'service_name'],
+    ['name', 'worker', 'service_name'],
     registry=registry,
     buckets=BUCKETS,
 )
@@ -75,13 +75,13 @@ celery_task_runtime = Histogram(
 celery_worker_up = Gauge(
     'celery_worker_up',
     'Indicates if a worker has recently sent a heartbeat.',
-    ['hostname', 'service_name'],
+    ['worker', 'service_name'],
     registry=registry,
 )
 celery_worker_tasks_active = Gauge(
     'celery_worker_tasks_active',
     'The number of tasks the worker is currently processing',
-    ['hostname', 'service_name'],
+    ['worker', 'service_name'],
     registry=registry,
 )
 
