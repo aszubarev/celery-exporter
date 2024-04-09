@@ -9,7 +9,7 @@ class Settings(BaseSettings):
         description=(
             'The metric celery_task_sent_total will be labeled with a generic hostname. '
             'This option helps with label cardinality when using a dynamic number of clients '
-            "which create tasks. The default behavior is to label the metric with the generic hostname. "
+            'which create tasks. The default behavior is to label the metric with the generic hostname. '
             'Knowing which client sent a task might not be useful for many use cases as for example in '
             "Kubernetes environments where the client's hostname is a random string."
         ),

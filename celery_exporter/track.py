@@ -146,10 +146,10 @@ def track_worker_ping(app: Celery, service_name: str) -> None:
             )
 
 
-def track_queue_metrics(app: Celery, connection: Connection, service_name: str) -> None:        # noqa: C901,WPS210
+def track_queue_metrics(app: Celery, connection: Connection, service_name: str) -> None:    # noqa: C901,WPS210,WPS231
     transport = connection.info()['transport']
 
-    if transport not in ['redis', 'rediss', 'amqp', 'amqps', 'memory', 'sentinel']:
+    if transport not in {'redis', 'rediss', 'amqp', 'amqps', 'memory', 'sentinel'}:
         logger.warning('Queue length tracking is not available', transport=transport)
 
     inspect: Inspect = app.control.inspect()
@@ -178,7 +178,7 @@ def track_queue_metrics(app: Celery, connection: Connection, service_name: str) 
     for queue in state.queues[service_name]:
         metrics.celery_active_process_count.labels(
             queue_name=queue,
-            service_name=service_name
+            service_name=service_name,
         ).set(processes_per_queue[queue])
 
         metrics.celery_active_worker_count.labels(
@@ -186,7 +186,7 @@ def track_queue_metrics(app: Celery, connection: Connection, service_name: str) 
             service_name=service_name,
         ).set(workers_per_queue[queue])
 
-        if transport in ['amqp', 'amqps', 'memory']:
+        if transport in {'amqp', 'amqps', 'memory'}:
             rabbitmq_queue_info = _rabbitmq_queue_info(connection, queue)
             consumer_count = 0
             message_count = 0
@@ -204,7 +204,7 @@ def track_queue_metrics(app: Celery, connection: Connection, service_name: str) 
                 service_name=service_name,
             ).set(message_count)
 
-        if transport in ['redis', 'rediss', 'sentinel']:
+        if transport in {'redis', 'rediss', 'sentinel'}:
             message_count = _redis_queue_length(connection, queue)
             metrics.celery_queue_length.labels(
                 queue_name=queue,
