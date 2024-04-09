@@ -186,9 +186,30 @@ def track_queue_metrics(app: Celery, connection: Connection, service_name: str) 
             service_name=service_name,
         ).set(workers_per_queue[queue])
 
-        length = _queue_length(transport, connection, queue)
-        if length is not None:
-            metrics.celery_queue_length.labels(queue_name=queue, service_name=service_name).set(length)
+        if transport in ['amqp', 'amqps', 'memory']:
+            rabbitmq_queue_info = _rabbitmq_queue_info(connection, queue)
+            consumer_count = 0
+            message_count = 0
+            if rabbitmq_queue_info:
+                consumer_count = rabbitmq_queue_info.consumer_count
+                message_count = rabbitmq_queue_info.message_count
+
+            metrics.celery_active_consumer_count.labels(
+                queue_name=queue,
+                service_name=service_name,
+            ).set(consumer_count)
+
+            metrics.celery_queue_length.labels(
+                queue_name=queue,
+                service_name=service_name,
+            ).set(message_count)
+
+        if transport in ['redis', 'rediss', 'sentinel']:
+            message_count = _redis_queue_length(connection, queue)
+            metrics.celery_queue_length.labels(
+                queue_name=queue,
+                service_name=service_name,
+            ).set(message_count)
 
 
 def _reset_worker_metrics(worker_name: str, service_name: str) -> None:
@@ -254,30 +275,6 @@ def _get_exception_class_name(exception_name: str) -> str:
 
 def _redis_queue_length(connection: Connection, queue: str) -> int:
     return connection.channel().client.llen(queue)
-
-
-def _rabbitmq_queue_length(connection: Connection, queue: str) -> int:
-    queue_info = _rabbitmq_queue_info(connection, queue)
-    if queue_info:
-        return queue_info.message_count
-    return 0
-
-
-def _queue_length(transport: str, connection: Connection, queue: str) -> int | None:
-    if transport in ['redis', 'rediss', 'sentinel']:                                        # noqa: WPS510
-        return _redis_queue_length(connection, queue)
-
-    if transport in ['amqp', 'amqps', 'memory']:                                            # noqa: WPS510
-        return _rabbitmq_queue_length(connection, queue)
-
-    return None
-
-
-def _rabbitmq_queue_consumer_count(connection: Connection, queue: str) -> int:
-    queue_info = _rabbitmq_queue_info(connection, queue)
-    if queue_info:
-        return queue_info.consumer_count
-    return 0
 
 
 def _rabbitmq_queue_info(connection: Connection, queue: str) -> queue_declare_ok_t | None:
