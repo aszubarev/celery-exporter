@@ -26,14 +26,6 @@ class Exporter:
             event_queue_prefix='service_a.celeryev',
             control_exchange='service_a',
         ),
-        'service_b': CeleryAppSettings(
-            broker_url=settings.BROKER_URL,
-            task_default_exchange='service_b',
-            task_default_queue='service_b',
-            event_exchange='service_b.celeryev',
-            event_queue_prefix='service_b.celeryev',
-            control_exchange='service_b',
-        ),
     }
 
     def run(self) -> None:
@@ -92,20 +84,6 @@ class Exporter:
                     logger.exception("Can't track queue metrics for service %s", service_name)
 
                 time.sleep(settings.COLLECT_QUEUE_METRICS_INTERVAL)
-
-    @classmethod
-    def collect_worker_ping(cls, service_name: str) -> None:
-        app = cls._create_celery_app(service_name)
-
-        while True:
-            try:
-                track.track_worker_ping(app=app, service_name=service_name)
-            except (KeyboardInterrupt, SystemExit) as ex:  # noqa: WPS329
-                raise ex
-            except Exception:
-                logger.exception("Can't track worker ping for service %s", service_name)
-
-            time.sleep(settings.COLLECT_WORKER_PING_RETRY_INTERVAL)
 
     @classmethod
     def collect_worker_timeout(cls) -> None:

@@ -32,8 +32,6 @@ class Settings(BaseSettings):
         ),
     )
 
-    POSTFIX_EVENT_EXCHANGE: str = 'celeryev.topic'
-
     BROKER_URL: str = 'amqp://guest:guest@localhost:8672'
 
     PORT: int = Field(default=9808, description='The port the exporter will listen on')
@@ -43,20 +41,16 @@ class Settings(BaseSettings):
         description='Broker exception retry interval in seconds, default is 0 for immediately',
     )
 
-    COLLECT_WORKER_PING_RETRY_INTERVAL: int = Field(default=60, description='Interval in seconds')
-
     COLLECT_WORKER_TIMEOUT_METRICS_INTERVAL: int = Field(default=15, description='Interval in seconds')
 
-    COLLECT_QUEUE_METRICS_INTERVAL: int = Field(default=30, description='Interval in seconds')
-
-    TRACK_WORKER_PING_TIMEOUT: int = Field(default=5, description='Timeout in seconds')
+    COLLECT_QUEUE_METRICS_INTERVAL: int = Field(default=15, description='Interval in seconds')
 
     LOG_LEVEL: str = 'INFO'
 
     PROMETHEUS_CLIENT_DISABLE_CREATED_METRICS: bool = True
 
     @model_validator(mode='after')
-    def validate_timeout(self) -> 'Settings':
+    def validate_purge_offline_worker_metrics_after_seconds(self) -> 'Settings':                # noqa: WPS118
         if self.PURGE_OFFLINE_WORKER_METRICS_AFTER_SECONDS < self.WORKER_TIMEOUT_SECONDS:
             raise ValueError(
                 'PURGE_OFFLINE_WORKER_METRICS_AFTER_SECONDS must be greater or equal than WORKER_TIMEOUT_SECONDS',
@@ -81,25 +75,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def validate_collect_queue_metrics_interval(self) -> 'Settings':
-        if self.COLLECT_QUEUE_METRICS_INTERVAL < 30:
+        if self.COLLECT_QUEUE_METRICS_INTERVAL < 15:
             raise ValueError(
                 'COLLECT_QUEUE_METRICS_INTERVAL must be greater or equal than 30.',
-            )
-        return self
-
-    @model_validator(mode='after')
-    def validate_collect_worker_ping_retry_interval(self) -> 'Settings':
-        if self.COLLECT_WORKER_PING_RETRY_INTERVAL < 15:
-            raise ValueError(
-                'COLLECT_WORKER_PING_RETRY_INTERVAL must be greater or equal than 15.',
-            )
-        return self
-
-    @model_validator(mode='after')
-    def validate_track_worker_ping_timeout(self) -> 'Settings':
-        if self.TRACK_WORKER_PING_TIMEOUT < 5:
-            raise ValueError(
-                'TRACK_WORKER_PING_TIMEOUT must be greater or equal than 5.',
             )
         return self
 

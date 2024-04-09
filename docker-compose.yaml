@@ -1,11 +1,5 @@
 version: "3.6"
 services:
-  postgres:
-    image: "postgres:11"
-    restart: always
-    ports:
-      - "8432:5432"
-
   rabbitmq:
     image: "rabbitmq:3-management"
     restart: always
@@ -13,6 +7,84 @@ services:
       - "8672:5672"
       - "18672:15672"
 
+  prometheus:
+    image: "prom/prometheus"
+    ports:
+      - "9090:9090"
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+
+  grafana:
+    image: "grafana/grafana"
+    ports:
+      - "3000:3000"
+    volumes:
+      - "grafana-storage:/var/lib/grafana"
+
+  celery_exporter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    restart: always
+    ports:
+      - "9808:9808"
+    command: python -m celery_exporter
+    environment:
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672
+      WORKER_TIMEOUT_SECONDS: 30
+      PURGE_OFFLINE_WORKER_METRICS_AFTER_SECONDS: 60
+
+  celery_worker_default_1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: celery --workdir examples -A service_default worker -n default-1@%h -c 8 -Q celery,celery.example_queue_1,celery.example_queue_2,celery.example_queue_3
+    environment:
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672
+
+  celery_worker_default_2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: celery --workdir examples -A service_default worker -n default-2@%h -c 4 -Q celery.example_queue_1,celery.example_queue_2
+    environment:
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672
+
+  celery_worker_service_a_1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: celery --workdir examples -A service_a worker -n service_a-1@%h -c 10 -Q service_a,service_a.example_queue_1,service_a.example_queue_2,service_a.example_queue_3
+    environment:
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672
+
+  celery_worker_service_a_2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: celery --workdir examples -A service_a worker -n service_a-2@%h -c 2 -Q service_a.example_queue_1,service_a.example_queue_2
+    environment:
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672
+
+  celery_producer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: python examples/producer.py
+    environment:
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672
+
 volumes:
-  pgdata:
   grafana-storage:

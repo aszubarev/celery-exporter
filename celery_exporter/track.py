@@ -1,4 +1,3 @@
-import datetime
 import re
 from collections import defaultdict
 from typing import Any, Callable, TypeVar
@@ -122,28 +121,6 @@ def track_worker_timeout() -> None:
             logger.info('Worker timeout. Purging metrics', worker=worker_name, service_name=service_name, since=since)
 
             _purge_worker_metrics(worker_name, service_name)
-
-
-def track_worker_ping(app: Celery, service_name: str) -> None:
-    logger.info('ping', service_name=service_name)
-
-    pong = app.control.ping(timeout=settings.TRACK_WORKER_PING_TIMEOUT)
-
-    for workers in pong:
-        for worker_name in workers:
-            logger.info('pong', worker=worker_name, service_name=service_name)
-
-            state.worker_last_seen[(worker_name, service_name)] = datetime.datetime.utcnow().timestamp()
-
-            metrics.celery_worker_up.labels(worker=worker_name, service_name=service_name).set(1)
-            # noinspection PyProtectedMember
-            logger.debug(
-                'Update gauge',
-                worker=worker_name,
-                service_name=service_name,
-                metric_name=metrics.celery_worker_up._name,
-                value=1,
-            )
 
 
 def track_queue_metrics(app: Celery, connection: Connection, service_name: str) -> None:    # noqa: C901,WPS210,WPS231
