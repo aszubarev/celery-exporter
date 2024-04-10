@@ -1,3 +1,4 @@
+import logging
 import random
 from threading import Thread
 from time import sleep
@@ -76,7 +77,6 @@ class Producer:
 
     @classmethod
     def run_tasks(cls, service_name) -> None:
-        cnt = 10
 
         while True:
             task_idx = random.choice(tuple(tasks[service_name].keys()))
@@ -88,16 +88,20 @@ class Producer:
             if need_revoke:
                 countdown = 10
 
-            result: AsyncResult = task.apply_async(countdown=countdown)
-
-            if need_revoke:
-                apps[service_name].control.revoke(result.id)
+            try:
+                result: AsyncResult = task.apply_async(countdown=countdown)
+            except Exception:
+                logging.exception("Can't apply async")
+            else:
+                if need_revoke:
+                    try:
+                        apps[service_name].control.revoke(result.id)
+                    except Exception:
+                        logging.exception("Can't revoke")
 
             timeout = random.uniform(0.1, 1)
 
             sleep(timeout)
-
-            cnt += 1
 
     @classmethod
     def _need_revoke(cls):
